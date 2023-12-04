@@ -1,8 +1,28 @@
 /**@param {ReportCSV} reportsCSV  */
 export function validateSimbaReport(reportsCSV) {
-    console.log(
-        `active: ${reportsCSV.active.length} \nsimba: ${reportsCSV.simba.length} \nsubscriptions: ${reportsCSV.subscriptions.length}`
-    );
+    const data = [
+        {
+            dealerId: 0,
+            dealer: '',
+            simbaProducts: [
+                {
+                    packageId: 0,
+                    productsId: 0,
+                    productsName: '',
+                },
+            ],
+            customers: [
+                {
+                    viewersId: 0,
+                    customersId: 0,
+                    login: '',
+                    isActive: false,
+                },
+            ],
+            totalCustomersActive: 0,
+            totalCustomers: 0,
+        },
+    ];
 }
 
 /**

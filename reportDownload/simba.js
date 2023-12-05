@@ -7,8 +7,9 @@ import {
 const ACTIVE = 'active';
 const SUBSCRIPTIONS = 'subscriptions';
 const SIMBA = 'simba';
+const DEALERS = 'dealers';
 
-const TYPES = [ACTIVE, SUBSCRIPTIONS, SIMBA];
+const TYPES = [ACTIVE, SUBSCRIPTIONS, SIMBA, DEALERS];
 
 /** @returns {Promise<ReportIds>} */
 export async function returnLatestIdFromReportType() {
@@ -69,20 +70,23 @@ export function linesfromDownloadReports(content) {
  * @property {number} active
  * @property {number} simba,
  * @property {number} subscriptions
+ * @property {number} dealers
  */
 
 /**
  * @typedef {object} ReportContents
  * @property {string} active
- * @property {string} simba,
+ * @property {string} simba
  * @property {string} subscriptions
+ * @property {string} dealers
  */
 
 /**
  * @typedef {object} ReportCSV
  * @property {string[]} active
- * @property {string[]} simba,
+ * @property {string[]} simba
  * @property {string[]} subscriptions
+ * @property {string[]} dealers
  */
 
 /**

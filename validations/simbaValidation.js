@@ -1,187 +1,235 @@
+import os from 'node:os';
+import * as CSV from './simbaConstantsCSV.js';
+
 /**@param {ReportCSV} reportsCSV  */
 export function validateSimbaReport(reportsCSV) {
-    const dealersData = validateDealerXSimbaProducts(reportsCSV);
-    const dealersDataCustomers = validateActiveCustomers(
-        reportsCSV,
-        dealersData
-    );
-    console.log(dealersDataCustomers);
+    console.time('Validation');
+    const data = validateCustomerSimbaAndActive(reportsCSV);
+    console.timeEnd('Validation');
 }
 
 /**
  * @param {ReportCSV} reportsCSV
- * @param {DealerData[]} dealers
  * @returns {DealerData[]}
  */
-function validateActiveCustomers(reportsCSV, dealers) {
-    const viewersid = 0;
-    const customersid = 1;
-    const profilesid = 2;
-    const profile = 3;
-    const login = 4;
-    const portal = 5;
-    const dealerid = 6;
-    const dealer = 7;
-    const productid = 8;
-    const product = 9;
-    const subscribed_at = 10;
-    const cancelled_at = 11;
+function validateCustomerSimbaAndActive(reportsCSV) {
+    const customersInserted = {};
 
-    const avendor = 0;
-    const adealerid = 1;
-    const adealer = 2;
-    const aprofileUsed = 3;
-    const aused = 4;
-    const aviewersid = 5;
-    const acustomersid = 6;
-    const alogin = 7;
+    const genericActiveCustomers = efficientListActiveCustomer(
+        reportsCSV.active
+    );
+    const genericDealerData = efficientDealerXSimbaProducts(reportsCSV);
 
-    const customerTemp = {};
+    for (let i = 0; i < reportsCSV.subscriptions.length; i++) {
+        const subcripstion_columns = removeDoubleQuotesFromCSV(
+            reportsCSV.subscriptions[i]
+        );
 
-    let counter = 0;
-    for (const dealerData of dealers) {
-        for (const subscription of reportsCSV.subscriptions) {
-            const subColumns = subscription.split(',');
-            if (subColumns[viewersid] === 'viewersid') {
-                console.log(subColumns[viewersid], subColumns[login]);
-                continue;
-            }
+        let isActive =
+            !!genericActiveCustomers[subcripstion_columns[CSV.sub_viewersid]];
+        if (
+            isActive &&
+            genericDealerData[subcripstion_columns[CSV.sub_dealerid]] &&
+            !customersInserted[subcripstion_columns[CSV.sub_viewersid]]
+        ) {
+            customersInserted[subcripstion_columns[CSV.sub_viewersid]] =
+                'inserted';
+            genericDealerData[
+                subcripstion_columns[CSV.sub_dealerid]
+            ].customers.push(
+                genericActiveCustomers[subcripstion_columns[CSV.sub_viewersid]]
+            );
+            genericDealerData[subcripstion_columns[CSV.sub_dealerid]]
+                .totalCustomersActive++;
+            genericDealerData[subcripstion_columns[CSV.sub_dealerid]]
+                .totalCustomers++;
+        } else if (
+            !genericActiveCustomers[subcripstion_columns[CSV.sub_viewersid]] &&
+            genericDealerData[subcripstion_columns[CSV.sub_dealerid]] &&
+            !customersInserted[subcripstion_columns[CSV.sub_viewersid]]
+        ) {
+            customersInserted[subcripstion_columns[CSV.sub_viewersid]] =
+                'inserted';
+            genericActiveCustomers[subcripstion_columns[CSV.sub_viewersid]] = {
+                viewersId: parseInt(subcripstion_columns[CSV.sub_viewersid]),
+                customersId: parseInt(
+                    subcripstion_columns[CSV.sub_customersid]
+                ),
+                login: subcripstion_columns[CSV.sub_login],
+                isActive: false,
+                simbaProducts: [],
+                lastUsed: undefined,
+            };
+            genericDealerData[
+                subcripstion_columns[CSV.sub_dealerid]
+            ].customers.push(
+                genericActiveCustomers[subcripstion_columns[CSV.sub_viewersid]]
+            );
+            genericDealerData[subcripstion_columns[CSV.sub_dealerid]]
+                .totalCustomers++;
+        }
 
-            if (!customerTemp[subColumns[viewersid]]) {
-                customerTemp[subColumns[viewersid]] = {
-                    viewersId: parseInt(subColumns[viewersid]),
-                    customersId: parseInt(subColumns[customersid]),
-                    login: subColumns[login],
-                    isActive: false,
-                    simbaProducts: [],
-                };
-                dealerData.customers.push(customerTemp[subColumns[viewersid]]);
-            }
-
-            for (const simbaProduct of dealerData.simbaProducts) {
+        if (genericDealerData[subcripstion_columns[CSV.sub_dealerid]]) {
+            for (const simbaProduct of genericDealerData[
+                subcripstion_columns[CSV.sub_dealerid]
+            ].simbaProducts) {
                 if (
-                    simbaProduct.productsId === parseInt(subColumns[productid])
+                    simbaProduct.productsId ===
+                    parseInt(subcripstion_columns[CSV.sub_productid])
                 ) {
-                    console.log(
-                        dealerData.dealerName,
-                        'idp: ',
-                        simbaProduct.productsId,
-                        'idc: ',
-                        subColumns[viewersid],
-                        'count: ',
-                        counter
-                    );
-                    customerTemp[subColumns[viewersid]].simbaProducts.push(
-                        simbaProduct
-                    );
+                    genericActiveCustomers[
+                        subcripstion_columns[CSV.sub_viewersid]
+                    ].simbaProducts.push(simbaProduct);
                 }
-                counter++;
-            }
-
-            for (const active of reportsCSV.active) {
-                const actColumns = active.split(',');
-                if (
-                    customerTemp[subColumns[viewersid]].viewersId ===
-                    parseInt(actColumns[aviewersid])
-                ) {
-                    console.log(
-                        dealerData.dealerName,
-                        'ids: ',
-                        actColumns[aviewersid],
-                        'idc: ',
-                        subColumns[viewersid],
-                        'count: ',
-                        counter
-                    );
-                    customerTemp[subColumns[viewersid]].isActive = true;
-                }
-                counter++;
             }
         }
-        break;
     }
 
-    return dealers;
+    /**@type {DealerData[]} */
+    const dealerData = [];
+
+    for (const key in genericDealerData) {
+        if (genericDealerData.hasOwnProperty(key)) {
+            dealerData.push(genericDealerData[key]);
+        }
+    }
+
+    return dealerData;
+}
+
+/**
+ * @param {string[]} activeReport
+ * @returns {GenericCustomerData}
+ */
+function efficientListActiveCustomer(activeReport) {
+    /**@type {GenericCustomerData} */
+    const genericCustomerData = {};
+
+    for (const line of activeReport) {
+        const active_columns = removeDoubleQuotesFromCSV(line);
+
+        if (
+            active_columns[CSV.act_vendor] === 'vendor' ||
+            !(active_columns.length > 1)
+        ) {
+            continue;
+        }
+
+        if (!genericCustomerData[active_columns[CSV.act_viewersid]]) {
+            genericCustomerData[active_columns[CSV.act_viewersid]] = {
+                viewersId: parseInt(active_columns[CSV.act_viewersid]),
+                customersId: parseInt(active_columns[CSV.act_customersid]),
+                login: active_columns[CSV.act_login],
+                isActive: true,
+                lastUsed: active_columns[CSV.act_used],
+                simbaProducts: [],
+            };
+        }
+    }
+    return genericCustomerData;
 }
 
 /**
  * @param {ReportCSV} reportsCSV
- * @returns {DealerData[]}
+ * @returns {GenericDealerData}
  */
-function validateDealerXSimbaProducts(reportsCSV) {
-    const dealers_id = 0;
-    const dealers_name = 1;
-    const products_id = 2;
-    const packages_id = 3;
-    const packages_name = 4;
-    const channels_id = 5;
-    const channels_name = 6;
-
-    const id = 0;
-    const name = 1;
-    const nomefantasia = 2;
-    const razaosocial = 3;
-    const cnpj = 4;
-    const cidade = 5;
-    const uf = 6;
-
-    const dealers = [];
+function efficientDealerXSimbaProducts(reportsCSV) {
+    /**@type {GenericSimbaProductsData} */
     const tempProductsGroup = {};
+    /**@type {GenericDealerData} */
     const tempoDealerGrouped = {};
 
-    for (const product of reportsCSV.simba) {
-        const columns = product.split(',');
-        if (columns[dealers_id] === 'dealers_id') {
-            console.log(columns[dealers_id], columns[packages_name]);
-            continue;
-        }
-        if (!tempProductsGroup[columns[products_id]]) {
-            tempProductsGroup[columns[products_id]] = {
-                packageId: parseInt(columns[packages_id]),
-                productsId: parseInt(columns[products_id]),
-                productsName: columns[packages_name],
-            };
-        }
+    for (const dealer of reportsCSV.dealers) {
+        const dealerColumn = removeDoubleQuotesFromCSV(dealer);
 
-        if (tempoDealerGrouped[columns[dealers_id]]) {
-            let shouldinclude = true;
-            for (const item of tempoDealerGrouped[columns[dealers_id]]
-                .simbaProducts) {
-                if (item.packageId === parseInt(columns[packages_id])) {
-                    shouldinclude = false;
+        for (const product of reportsCSV.simba) {
+            const columns = removeDoubleQuotesFromCSV(product);
+            if (
+                columns[CSV.sim_dealers_id] === 'dealers_id' ||
+                !(columns.length > 1)
+            ) {
+                // console.log(
+                //     'Continue',
+                //     columns[CSV.sim_dealers_id],
+                //     columns[CSV.sim_packages_name]
+                // );
+                continue;
+            }
+            if (!tempProductsGroup[columns[CSV.sim_products_id]]) {
+                // console.log(
+                //     columns[CSV.sim_packages_id],
+                //     columns[CSV.sim_products_id],
+                //     columns[CSV.sim_packages_name]
+                // );
+                tempProductsGroup[columns[CSV.sim_products_id]] = {
+                    packageId: parseInt(columns[CSV.sim_packages_id]),
+                    productsId: parseInt(columns[CSV.sim_products_id]),
+                    productsName: columns[CSV.sim_packages_name],
+                };
+            }
+
+            if (tempoDealerGrouped[columns[CSV.sim_dealers_id]]) {
+                let shouldinclude = true;
+                for (const item of tempoDealerGrouped[
+                    columns[CSV.sim_dealers_id]
+                ].simbaProducts) {
+                    if (
+                        item.packageId ===
+                        parseInt(columns[CSV.sim_packages_id])
+                    ) {
+                        shouldinclude = false;
+                    }
                 }
-            }
-            if (shouldinclude) {
-                tempoDealerGrouped[columns[dealers_id]].simbaProducts.push(
-                    tempProductsGroup[columns[products_id]]
-                );
-            }
-        } else {
-            for (const dealer of reportsCSV.dealers) {
-                const dealerColumn = dealer.split(',');
-                if (columns[dealers_id] === dealerColumn[id]) {
-                    tempoDealerGrouped[columns[dealers_id]] = {
-                        dealerId: parseInt(columns[dealers_id]),
-                        dealerName: columns[dealers_name],
-                        dealerNomeFantasia: dealerColumn[nomefantasia],
-                        dealerRazaoSocial: dealerColumn[razaosocial],
-                        dealerCnpj: dealerColumn[cnpj],
-                        dealerCidade: dealerColumn[cidade],
-                        dealerUf: dealerColumn[uf],
+                if (shouldinclude) {
+                    tempoDealerGrouped[
+                        columns[CSV.sim_dealers_id]
+                    ].simbaProducts.push(
+                        tempProductsGroup[columns[CSV.sim_products_id]]
+                    );
+                }
+            } else {
+                if (columns[CSV.sim_dealers_id] === dealerColumn[CSV.d_id]) {
+                    tempoDealerGrouped[columns[CSV.sim_dealers_id]] = {
+                        dealerId: parseInt(columns[CSV.sim_dealers_id]),
+                        dealerName: columns[CSV.sim_dealers_name],
+                        dealerNomeFantasia: dealerColumn[CSV.d_nomefantasia],
+                        dealerRazaoSocial: dealerColumn[CSV.d_razaosocial],
+                        dealerCnpj: dealerColumn[CSV.d_cnpj],
+                        dealerCidade: dealerColumn[CSV.d_cidade],
+                        dealerUf: dealerColumn[CSV.d_uf],
                         simbaProducts: [
-                            tempProductsGroup[columns[products_id]],
+                            tempProductsGroup[columns[CSV.sim_products_id]],
                         ],
                         customers: [],
                         totalCustomersActive: 0,
                         totalCustomers: 0,
                     };
-                    dealers.push(tempoDealerGrouped[columns[dealers_id]]);
                 }
             }
         }
     }
-    return dealers;
+    return tempoDealerGrouped;
 }
+
+/**@param {string} line @returns {string[]} */
+function removeDoubleQuotesFromCSV(line) {
+    return line.split(',').reduce((pre, curr) => {
+        pre.push(curr.replaceAll('"', ''));
+        return pre;
+    }, []);
+}
+
+/**
+ * @typedef {Object.<string, DealerData>} GenericDealerData
+ */
+
+/**
+ * @typedef {Object.<string, CustomerData>} GenericCustomerData
+ */
+
+/**
+ * @typedef {Object.<string, SimbaProductsData>} GenericSimbaProductsData
+ */
 
 /**
  * @typedef {object} DealerData
@@ -204,6 +252,7 @@ function validateDealerXSimbaProducts(reportsCSV) {
  * @property {number} customersId
  * @property {string} login
  * @property {boolean} isActive
+ * @property {string} [lastUsed]
  * @property {SimbaProductsData[]} simbaProducts
  */
 

@@ -1,4 +1,4 @@
-import { createHash } from 'crypto';
+import { createHash } from 'node:crypto';
 
 const LOGIN = process.env.LOGINMOTV;
 const SECRET = process.env.SECRETMOTV;

@@ -59,7 +59,8 @@ export async function downloadAllReports(ids) {
 export function linesfromDownloadReports(content) {
     const tempObject = {};
     for (const TYPE of TYPES) {
-        const lines = readCSVfile(content[TYPE]);
+        const value = content[TYPE] ? content[TYPE] : '';
+        const lines = readCSVfile(value);
         tempObject[TYPE] = lines;
     }
     return tempObject;

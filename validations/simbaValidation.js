@@ -16,6 +16,7 @@ export function validateSimbaReport(reportsCSV) {
  */
 function validateCustomerSimbaAndActive(reportsCSV) {
     const customersInserted = new Set();
+    const customerCounted = new Set();
 
     const genericActiveCustomers = efficientListActiveCustomer(
         reportsCSV.active
@@ -33,8 +34,6 @@ function validateCustomerSimbaAndActive(reportsCSV) {
         if (activeCustomer && dealer && !customersInserted.has(viewersId)) {
             customersInserted.add(viewersId);
             dealer.customers.push(activeCustomer);
-            dealer.totalCustomersActive++;
-            dealer.totalCustomers++;
         } else if (
             !activeCustomer &&
             dealer &&
@@ -52,10 +51,10 @@ function validateCustomerSimbaAndActive(reportsCSV) {
                 lastUsed: undefined,
             };
             dealer.customers.push(genericActiveCustomers[viewersId]);
-            dealer.totalCustomers++;
         }
 
         if (dealer) {
+            let isSimba = false;
             for (const simbaProduct of dealer.simbaProducts) {
                 if (
                     simbaProduct.productsId ===
@@ -64,7 +63,15 @@ function validateCustomerSimbaAndActive(reportsCSV) {
                     genericActiveCustomers[viewersId].simbaProducts.push(
                         simbaProduct
                     );
+                    isSimba = true;
                 }
+            }
+            if (isSimba && !customerCounted.has(viewersId)) {
+                dealer.totalCustomers++;
+                if (genericActiveCustomers[viewersId].isActive) {
+                    dealer.totalCustomersActive++;
+                }
+                customerCounted.add(viewersId);
             }
         }
     }

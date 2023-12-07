@@ -6,6 +6,8 @@ export function validateSimbaReport(reportsCSV) {
     console.time('Validation');
     const data = validateCustomerSimbaAndActive(reportsCSV);
     console.timeEnd('Validation');
+
+    return data;
 }
 
 /**
@@ -13,45 +15,34 @@ export function validateSimbaReport(reportsCSV) {
  * @returns {DealerData[]}
  */
 function validateCustomerSimbaAndActive(reportsCSV) {
-    const customersInserted = {};
+    const customersInserted = new Set();
 
     const genericActiveCustomers = efficientListActiveCustomer(
         reportsCSV.active
     );
     const genericDealerData = efficientDealerXSimbaProducts(reportsCSV);
 
-    for (let i = 0; i < reportsCSV.subscriptions.length; i++) {
-        const subcripstion_columns = removeDoubleQuotesFromCSV(
-            reportsCSV.subscriptions[i]
-        );
+    for (const subscriptions of reportsCSV.subscriptions) {
+        const subcripstion_columns = removeDoubleQuotesFromCSV(subscriptions);
 
-        let isActive =
-            !!genericActiveCustomers[subcripstion_columns[CSV.sub_viewersid]];
-        if (
-            isActive &&
-            genericDealerData[subcripstion_columns[CSV.sub_dealerid]] &&
-            !customersInserted[subcripstion_columns[CSV.sub_viewersid]]
-        ) {
-            customersInserted[subcripstion_columns[CSV.sub_viewersid]] =
-                'inserted';
-            genericDealerData[
-                subcripstion_columns[CSV.sub_dealerid]
-            ].customers.push(
-                genericActiveCustomers[subcripstion_columns[CSV.sub_viewersid]]
-            );
-            genericDealerData[subcripstion_columns[CSV.sub_dealerid]]
-                .totalCustomersActive++;
-            genericDealerData[subcripstion_columns[CSV.sub_dealerid]]
-                .totalCustomers++;
+        const viewersId = subcripstion_columns[CSV.sub_viewersid];
+        const dealer =
+            genericDealerData[subcripstion_columns[CSV.sub_dealerid]];
+        const activeCustomer = genericActiveCustomers[viewersId];
+
+        if (activeCustomer && dealer && !customersInserted.has(viewersId)) {
+            customersInserted.add(viewersId);
+            dealer.customers.push(activeCustomer);
+            dealer.totalCustomersActive++;
+            dealer.totalCustomers++;
         } else if (
-            !genericActiveCustomers[subcripstion_columns[CSV.sub_viewersid]] &&
-            genericDealerData[subcripstion_columns[CSV.sub_dealerid]] &&
-            !customersInserted[subcripstion_columns[CSV.sub_viewersid]]
+            !activeCustomer &&
+            dealer &&
+            !customersInserted.has(viewersId)
         ) {
-            customersInserted[subcripstion_columns[CSV.sub_viewersid]] =
-                'inserted';
-            genericActiveCustomers[subcripstion_columns[CSV.sub_viewersid]] = {
-                viewersId: parseInt(subcripstion_columns[CSV.sub_viewersid]),
+            customersInserted.add(viewersId);
+            genericActiveCustomers[viewersId] = {
+                viewersId: parseInt(viewersId),
                 customersId: parseInt(
                     subcripstion_columns[CSV.sub_customersid]
                 ),
@@ -60,26 +51,19 @@ function validateCustomerSimbaAndActive(reportsCSV) {
                 simbaProducts: [],
                 lastUsed: undefined,
             };
-            genericDealerData[
-                subcripstion_columns[CSV.sub_dealerid]
-            ].customers.push(
-                genericActiveCustomers[subcripstion_columns[CSV.sub_viewersid]]
-            );
-            genericDealerData[subcripstion_columns[CSV.sub_dealerid]]
-                .totalCustomers++;
+            dealer.customers.push(genericActiveCustomers[viewersId]);
+            dealer.totalCustomers++;
         }
 
-        if (genericDealerData[subcripstion_columns[CSV.sub_dealerid]]) {
-            for (const simbaProduct of genericDealerData[
-                subcripstion_columns[CSV.sub_dealerid]
-            ].simbaProducts) {
+        if (dealer) {
+            for (const simbaProduct of dealer.simbaProducts) {
                 if (
                     simbaProduct.productsId ===
                     parseInt(subcripstion_columns[CSV.sub_productid])
                 ) {
-                    genericActiveCustomers[
-                        subcripstion_columns[CSV.sub_viewersid]
-                    ].simbaProducts.push(simbaProduct);
+                    genericActiveCustomers[viewersId].simbaProducts.push(
+                        simbaProduct
+                    );
                 }
             }
         }

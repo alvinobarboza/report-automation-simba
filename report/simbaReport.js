@@ -17,7 +17,7 @@ export async function generateExcelFiles(dealerData, reportsCSV) {
 }
 
 /**@param {DealerData[]} dealerData */
-async function writeProgramadorasReportSimba(dealerData) {
+export async function writeProgramadorasReportSimba(dealerData) {
     try {
         const stringDate = getDateRange();
         const amount = dealerData.reduce(

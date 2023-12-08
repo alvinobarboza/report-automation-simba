@@ -1,20 +1,12 @@
 import excel from 'excel4node';
 import {
-    getCurrentDate,
     getCurrentMonth,
     getCurrentYear,
     getDateRange,
 } from '../utils/dateManipulation.js';
-import path from 'node:path';
-import getFilenameDirname from '../utils/dirnameFilename.js';
 import * as ExcelStyles from '../utils/excelStyles.js';
-import fs from 'node:fs';
-const { __dirname } = getFilenameDirname(import.meta.url);
-
-/**@param {DealerData[]} dealerData  @param {ReportCSV} reportsCSV */
-export async function generateExcelFiles(dealerData, reportsCSV) {
-    await writeProgramadorasReportSimba(dealerData);
-}
+import './types.js';
+import * as File from '../utils/fileHandler.js';
 
 /**@param {DealerData[]} dealerData */
 export async function writeProgramadorasReportSimba(dealerData) {
@@ -264,88 +256,12 @@ export async function writeProgramadorasReportSimba(dealerData) {
         }
 
         //============================================================================
-        const filename = getPath(
+        const filename = File.getPath(
             `RELATORIO DE ASSINANTES - SIMBA - Ref. ${getCurrentMonth()}_${getCurrentYear()}.xlsx`
         );
-        insertFilenameToFilenames(filename);
+        File.insertFilenameToFilenames(filename);
         await workbook.write(filename);
     } catch (error) {
         console.log(error);
     }
 }
-
-/**@param {string} filename @returns {string} */
-function getPath(filename) {
-    return path.join(PATHTOFOLDER, filename);
-}
-
-/**@param {string} filename  */
-function insertFilenameToFilenames(filename) {
-    FILENAMES.push({
-        filename: path.basename(filename),
-        path: filename,
-    });
-}
-
-/**@type {Files[]} */
-const FILENAMES = [];
-
-const OUTPUT_FOLDER = 'output';
-
-/**@type {string} */
-const PATHTOFOLDER = (() => {
-    const pathFolder = path.join(
-        __dirname,
-        '..',
-        OUTPUT_FOLDER,
-        `${getCurrentMonth()}${getCurrentYear()}_${getCurrentDate()}`
-    );
-    if (!fs.existsSync(pathFolder)) fs.mkdirSync(pathFolder);
-    return pathFolder;
-})();
-
-/**
- * @typedef {object} DealerData
- * @property {number} dealerId
- * @property {string} dealerName
- * @property {string} dealerNomeFantasia
- * @property {string} dealerRazaoSocial
- * @property {string} dealerCnpj
- * @property {string} dealerCidade
- * @property {string} dealerUf
- * @property {SimbaProductsData[]} simbaProducts
- * @property {CustomerData[]} customers
- * @property {number} totalCustomersActive
- * @property {number} totalCustomers
- */
-
-/**
- * @typedef {object} CustomerData
- * @property {number} viewersId
- * @property {number} customersId
- * @property {string} login
- * @property {boolean} isActive
- * @property {string} [lastUsed]
- * @property {SimbaProductsData[]} simbaProducts
- */
-
-/**
- * @typedef {object} SimbaProductsData
- * @property {number} packageId
- * @property {number} productsId
- * @property {string} productsName
- */
-
-/**
- * @typedef {object} ReportCSV
- * @property {string[]} active
- * @property {string[]} simba,
- * @property {string[]} subscriptions
- * @property {string[]} dealers
- */
-
-/**
- * @typedef {object} Files
- * @property {string} filename
- * @property {string} path
- */
